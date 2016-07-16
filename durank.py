@@ -64,6 +64,21 @@ def size2eng(size,k=1024):
         sizestr = "%.1g" % (float(size))
     return sizestr
 
+def eng2size(numstr):
+    if numstr.endswith(("k","K")):
+        num = int(numstr[:-1])*1024;
+    elif numstr.endswith(("m","M")):
+        num = int(numstr[:-1])*1024*1024;
+    elif numstr.endswith(("g","G")):
+        num = int(numstr[:-1])*1024*1024*1024;
+    elif numstr.endswith(("t","T")):
+        num = int(numstr[:-1])*1024*1024*1024*1024;
+    elif numstr.endswith(("p","P")):
+        num = int(numstr[:-1])*1024*1024*1024*1024*1024;
+    else:
+        num = int(numstr)
+    return num
+
 def process_command_line(argv):
     """
     Return a 2-tuple: (settings object, args list).
@@ -85,7 +100,7 @@ def process_command_line(argv):
 
     # switches/options:
     parser.add_argument("-t", "--thresh", dest="threshold", action='store',
-                help="report only files, directories greater than THRESHOLD kB"
+                help="report only files, directories greater than THRESHOLD B.  Can use units, e.g. 2k, 2K, 1m, 1M, 2g, 2G, 1T, etc."
                 )
     parser.add_argument("-k", dest="kilobyte", action="store_true",
                 help="report sizes in number of kB only"
@@ -112,7 +127,7 @@ def main( argv=None ):
 
     # parse threshold if present
     if args.threshold:
-        filter = int(args.threshold) * 1024
+        filter = eng2size(args.threshold)
         print( "threshold=%sB" % size2eng(filter))
     else:
         filter = 0

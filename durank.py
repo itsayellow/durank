@@ -100,7 +100,7 @@ def process_command_line(argv):
 
     # switches/options:
     parser.add_argument("-t", "--thresh", dest="threshold", action='store',
-                help="report only files, directories greater than THRESHOLD B.  Can use units, e.g. 2k, 2K, 1m, 1M, 2g, 2G, 1T, etc."
+                help="report only files, directories greater than THRESHOLD bytes.  Can use units, e.g. 2k, 2K, 1m, 1M, 2g, 2G, 1T, etc."
                 )
     parser.add_argument("-k", dest="kilobyte", action="store_true",
                 help="report sizes in number of kB only"

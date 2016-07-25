@@ -79,6 +79,18 @@ def eng2size(numstr):
         num = int(numstr)
     return num
 
+
+# delete all keys in sizedict that resolve to a number less than filter
+# can operate on sizedict because it is a reference
+def filter_thresh(sizedict, filter):
+    filtered_keys = []
+    for key in sizedict.keys():
+        if sizedict[key] < filter:
+            filtered_keys.append(key)
+    for key in filtered_keys:
+        sizedict.pop(key)
+
+
 def process_command_line(argv):
     """
     Return a 2-tuple: (settings object, args list).
@@ -200,9 +212,19 @@ def main( argv=None ):
     print( "\b"*40+str(filesdone)+" files processed.", file=sys.stderr )
     print( str(filesdone)+" files processed." )
 
-    # take dict and display sorted tally
+    # filter dict first before converting to list and sorting (efficiency)
+    #   filtering is VERY FAST
+    if filter>0:
+        print( "filtering by size...", file=sys.stderr )
+        filter_start = time.time()
+        filter_thresh(sizedict, filter)
+        filter_elapsed = time.time() - filter_start 
+    # take dict and sort
+    print( "sorting...", file=sys.stderr )
+    sort_start = time.time()
     fileitems = list(sizedict.items())
     fileitems.sort(key=byitemvalalpha)
+    sort_elapsed = time.time() - sort_start
 
     # maximum length in characters of the size string
     if args.kilobyte:
@@ -210,28 +232,31 @@ def main( argv=None ):
     else:
         maxsizelen = 8
 
+    print( "printing report...", file=sys.stderr )
     for (filename,filesize) in fileitems:
-        if filesize >= filter:
-            if args.kilobyte:
-                sizestr = "%.f" % (float(filesize)/1024)
-            else:
-                sizestr = size2eng(filesize)+"B"
-            spacestr = " " * (maxsizelen - len(sizestr) )
-            if os.path.isdir(filename):
-                # add trailing slash to indicate a dir
-                filename = filename + os.sep
-            try:
-                print( spacestr+sizestr+" "+filename )
-            except UnicodeEncodeError:
-                # sometimes os.walk will return an non-encodable-in-unicode
-                #   string!  default error checking is 'strict' so we specify
-                #   our own encoding with 'ignore' and decode back to unicode
-                filename = filename.encode('utf-8','ignore').decode('utf-8')
-                print( "Bad Encoding: "+filename, file=sys.stderr )
-                print( spacestr+sizestr+" "+filename )
+        if args.kilobyte:
+            sizestr = "%.f" % (float(filesize)/1024)
+        else:
+            sizestr = size2eng(filesize)+"B"
+        spacestr = " " * (maxsizelen - len(sizestr) )
+        if os.path.isdir(filename):
+            # add trailing slash to indicate a dir
+            filename = filename + os.sep
+        try:
+            print( spacestr+sizestr+" "+filename )
+        except UnicodeEncodeError:
+            # sometimes os.walk will return an non-encodable-in-unicode
+            #   string!  default error checking is 'strict' so we specify
+            #   our own encoding with 'ignore' and decode back to unicode
+            filename = filename.encode('utf-8','ignore').decode('utf-8')
+            print( "Bad Encoding: "+filename, file=sys.stderr )
+            print( spacestr+sizestr+" "+filename )
 
     elapsed = time.time()-start
     print("Elapsed time: %.fs" % elapsed, file=sys.stderr )
+    if filter>0:
+        print("Filtering elapsed time: %.fs\n" % filter_elapsed )
+    print("Sorting elapsed time: %.fs\n" % sort_elapsed )
     print("Elapsed time: %.fs\n" % elapsed )
 
 if __name__=="__main__":

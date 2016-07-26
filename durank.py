@@ -151,7 +151,7 @@ def main( argv=None ):
     #-----------------------
     # main program
 
-    start = time.time()
+    start_time = time.time()
 
     # init main dictionary
     sizedict = {}
@@ -212,19 +212,17 @@ def main( argv=None ):
     print( "\b"*40+str(filesdone)+" files processed.", file=sys.stderr )
     print( str(filesdone)+" files processed." )
 
+    file_catalog_done_time = time.time()
     # filter dict first before converting to list and sorting (efficiency)
     #   filtering is VERY FAST
     if filter>0:
         print( "filtering by size...", file=sys.stderr )
-        filter_start = time.time()
         filter_thresh(sizedict, filter)
-        filter_elapsed = time.time() - filter_start 
     # take dict and sort
     print( "sorting...", file=sys.stderr )
-    sort_start = time.time()
+    sort_start_time = time.time()
     fileitems = list(sizedict.items())
     fileitems.sort(key=byitemvalalpha)
-    sort_elapsed = time.time() - sort_start
 
     # maximum length in characters of the size string
     if args.kilobyte:
@@ -232,6 +230,7 @@ def main( argv=None ):
     else:
         maxsizelen = 8
 
+    print_start_time = time.time()
     print( "printing report...", file=sys.stderr )
     for (filename,filesize) in fileitems:
         if args.kilobyte:
@@ -251,13 +250,22 @@ def main( argv=None ):
             filename = filename.encode('utf-8','ignore').decode('utf-8')
             print( "Bad Encoding: "+filename, file=sys.stderr )
             print( spacestr+sizestr+" "+filename )
+    finish_time = time.time()
 
-    elapsed = time.time()-start
+    elapsed = finish_time-start_time
+    file_catalog_elapsed = file_catalog_done_time - start_time
+    filter_elapsed = sort_start_time - file_catalog_done_time
+    sort_elapsed = print_start_time - sort_start_time
+    print_elapsed = finish_time - print_start_time
+
     print("Elapsed time: %.fs" % elapsed, file=sys.stderr )
+
+    print("\nElapsed time: %.fs" % elapsed )
+    print("    File Cataloging elapsed time: %.fs" %file_catalog_elapsed)
     if filter>0:
-        print("Filtering elapsed time: %.fs\n" % filter_elapsed )
-    print("Sorting elapsed time: %.fs\n" % sort_elapsed )
-    print("Elapsed time: %.fs\n" % elapsed )
+        print("    Filtering elapsed time: %.fs" % filter_elapsed )
+    print("    Sorting elapsed time: %.fs" % sort_elapsed )
+    print("    Report Printing elapsed time: %.fs" % print_elapsed )
 
 if __name__=="__main__":
     status = main(sys.argv)

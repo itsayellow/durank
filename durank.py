@@ -26,7 +26,7 @@ def byitemvalalpha(x):
     """
     return "%016d"%(1e15-x[1])+str(x[0])
 
-# get size on disk (blocks*512) but if we can't,
+# get size on disk (blocks*block_size) via lstat, but if we can't,
 #   get size of file data
 def getfilesize(fullfilename):
     global SYS_STDERR_RETURN
@@ -34,6 +34,7 @@ def getfilesize(fullfilename):
         statinfo = os.lstat(fullfilename)
         try:
             # use blocks if possible
+            # st_blocks is in units of 512-byte blocks
             size = statinfo.st_blocks*512
         except:
             # otherwise use stupid python getsize
@@ -126,40 +127,15 @@ def process_command_line(argv):
 
     return args
 
-# main program
-def main( argv=None ):
+def index_dir( treeroot, exclude_paths ):
     global SYS_STDERR_RETURN
-    args = process_command_line(argv)
-
-    # TODO: search multiple paths if given
-    if len(args.searchpaths)< 1:
-        treeroot = '.'
-    else:
-        treeroot = os.path.normpath(args.searchpaths[0])
-
-    # parse threshold if present
-    if args.threshold:
-        filter = eng2size(args.threshold)
-        print( "threshold=%sB" % size2eng(filter))
-    else:
-        filter = 0
-
-    # print info to output
-    print( sys.argv[0]+" "+os.path.abspath(treeroot) )
-    print( datetime.datetime.now().strftime("%a %b %d %Y   %I:%M%p") )
-
-    #-----------------------
-    # main program
-
-    start_time = time.time()
 
     # init main dictionary
     sizedict = {}
     filesdone = 0
-
     for (root,dirs,files) in os.walk(treeroot):
         # add in directories to list of files in this dir
-        if args.exclude and re.search(args.exclude,root):
+        if exclude_paths and re.search(exclude_paths,root):
             if not SYS_STDERR_RETURN:
                 print( "\b"*40, file=sys.stderr, flush=True, end="" )
             print( "skipping root "+root, file=sys.stderr, flush=True )
@@ -167,7 +143,7 @@ def main( argv=None ):
             continue
         # remove anything matching exclude from dirs, will prevent
         #   os.walk from searching there! (slice or del)
-        if args.exclude:
+        if exclude_paths:
             for thisdir in dirs:
                 if re.search(args.exclude, os.path.join(root,thisdir)):
                     if not SYS_STDERR_RETURN:
@@ -182,7 +158,7 @@ def main( argv=None ):
         for filename in files:
             # full path to filename
             fullfilename = os.path.join(root,filename)
-            if args.exclude and re.search(args.exclude,fullfilename):
+            if exclude_paths and re.search(exclude_paths,fullfilename):
                 if not SYS_STDERR_RETURN:
                     print( "\b"*40, file=sys.stderr, flush=True, end="" )
                 print( "skipping file "+fullfilename,
@@ -205,14 +181,49 @@ def main( argv=None ):
                 SYS_STDERR_RETURN = False
 
     # now add in size of root dir
-    sizedict[treeroot] = sizedict.get(treeroot,0) + getfilesize(treeroot)
+    sizedict[treeroot] = ( sizedict.get(treeroot,0) + getfilesize(treeroot) )
     filesdone+=1
 
     # report final tally of files
     print( "\b"*40+str(filesdone)+" files processed.", file=sys.stderr )
     print( str(filesdone)+" files processed." )
 
+    return sizedict
+
+
+# main program
+def main( argv=None ):
+    global SYS_STDERR_RETURN
+    args = process_command_line(argv)
+
+    # TODO: search multiple paths if given
+    if len(args.searchpaths)< 1:
+        treeroot = '.'
+    else:
+        treeroot = os.path.normpath(args.searchpaths[0])
+
+    # parse threshold if present
+    if args.threshold:
+        filter = eng2size(args.threshold)
+        print( "threshold=%sB" % size2eng(filter))
+    else:
+        filter = 0
+
+    # print info to output
+    print( os.path.basename(__file__) + " " + " ".join(sys.argv[1:-1]), end="" )
+    print( " "+os.path.abspath(treeroot) )
+    print( datetime.datetime.now().strftime("%a %b %d %Y   %I:%M%p") )
+
+    #-----------------------
+    # main program
+
+    start_time = time.time()
+
+    # file crawling recursive sizer
+    sizedict = index_dir( treeroot, args.exclude )
+
     file_catalog_done_time = time.time()
+
     # filter dict first before converting to list and sorting (efficiency)
     #   filtering is VERY FAST
     if filter>0:
@@ -266,6 +277,7 @@ def main( argv=None ):
         print("    Filtering elapsed time: %.fs" % filter_elapsed )
     print("    Sorting elapsed time: %.fs" % sort_elapsed )
     print("    Report Printing elapsed time: %.fs" % print_elapsed )
+
 
 if __name__=="__main__":
     status = main(sys.argv)

@@ -202,17 +202,17 @@ def main( argv=None ):
     else:
         treeroot = os.path.normpath(args.searchpaths[0])
 
+    # print info to output
+    print( os.path.basename(__file__) + " " + " ".join(sys.argv[1:-1]), end="" )
+    print( " "+os.path.abspath(treeroot) )
+    print( datetime.datetime.now().strftime("%a %b %d %Y   %I:%M%p") )
+
     # parse threshold if present
     if args.threshold:
         filter = eng2size(args.threshold)
         print( "threshold=%sB" % size2eng(filter))
     else:
         filter = 0
-
-    # print info to output
-    print( os.path.basename(__file__) + " " + " ".join(sys.argv[1:-1]), end="" )
-    print( " "+os.path.abspath(treeroot) )
-    print( datetime.datetime.now().strftime("%a %b %d %Y   %I:%M%p") )
 
     #-----------------------
     # main program

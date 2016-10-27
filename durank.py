@@ -127,15 +127,17 @@ def process_command_line(argv):
 
     return args
 
-def index_dir( treeroot, exclude_paths ):
+def index_dir( treeroot, exclude_path ):
     global SYS_STDERR_RETURN
 
     # init main dictionary
     sizedict = {}
     filesdone = 0
+    exclude_path = re.escape(exclude_path)
+
     for (root,dirs,files) in os.walk(treeroot):
         # add in directories to list of files in this dir
-        if exclude_paths and re.search(exclude_paths,root):
+        if exclude_path and re.search(exclude_path,root):
             if not SYS_STDERR_RETURN:
                 print( "\b"*40, file=sys.stderr, flush=True, end="" )
             print( "skipping root "+root, file=sys.stderr, flush=True )
@@ -143,9 +145,9 @@ def index_dir( treeroot, exclude_paths ):
             continue
         # remove anything matching exclude from dirs, will prevent
         #   os.walk from searching there! (slice or del)
-        if exclude_paths:
+        if exclude_path:
             for thisdir in dirs:
-                if re.search(args.exclude, os.path.join(root,thisdir)):
+                if re.search(exclude_path, os.path.join(root,thisdir)):
                     if not SYS_STDERR_RETURN:
                         print( "\b"*40, file=sys.stderr, flush=True, end="" )
                     print( "removing "+thisdir+" from dirs",
@@ -158,7 +160,7 @@ def index_dir( treeroot, exclude_paths ):
         for filename in files:
             # full path to filename
             fullfilename = os.path.join(root,filename)
-            if exclude_paths and re.search(exclude_paths,fullfilename):
+            if exclude_path and re.search(exclude_path,fullfilename):
                 if not SYS_STDERR_RETURN:
                     print( "\b"*40, file=sys.stderr, flush=True, end="" )
                 print( "skipping file "+fullfilename,

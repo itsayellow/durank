@@ -133,7 +133,8 @@ def index_dir( treeroot, exclude_path ):
     # init main dictionary
     sizedict = {}
     filesdone = 0
-    exclude_path = re.escape(exclude_path)
+    if exclude_path:
+        exclude_path = re.escape(exclude_path)
 
     for (root,dirs,files) in os.walk(treeroot):
         # add in directories to list of files in this dir

@@ -13,7 +13,7 @@ import argparse
 import re
 
 # global flag to show we did/didn't last output a \n to stderr
-SYS_STDERR_RETURN = True
+SYS_STDERR_CR = True
 
 # x[1] is integer: sort decreasing
 # then if equal,
@@ -26,26 +26,59 @@ def byitemvalalpha(x):
     """
     return "%016d"%(1e15-x[1])+str(x[0])
 
+
+#   SYS_STDERR_CR is only useful if we are breaking out of the program or
+#   something, and want to preserve the last thing printed
+#
+#def stderr_printf( pr_str, flush=True ):
+#    global SYS_STDERR_CR
+#
+#    if not SYS_STDERR_CR:
+#        print( "\b"*80, file=sys.stderr, flush=True, end="" )
+#    
+#    print( pr_str, file=sys.stderr, flush=flush, end="" )
+#
+#    SYS_STDERR_CR = pr_str.endswith("\n")
+
+
+# alternate version with no global
+def stderr_printf( pr_str, flush=True, preserve_prev_line=False ):
+    if preserve_prev_line:
+        print( "\n", file=sys.stderr, flush=True,end="" )
+    else:
+        print( "\b"*80 + " "*80 + "\b"*80, file=sys.stderr, flush=True,end="" )
+
+    print( pr_str, file=sys.stderr, flush=flush, end="" )
+
+
 # get size on disk (blocks*block_size) via lstat, but if we can't,
 #   get size of file data
+# TODO: add specific exceptions to except
 def getfilesize(fullfilename):
-    global SYS_STDERR_RETURN
     try:
         statinfo = os.lstat(fullfilename)
         try:
             # use blocks if possible
             # st_blocks is in units of 512-byte blocks
             size = statinfo.st_blocks*512
+        except KeyboardInterrupt:
+            # actually stop if ctrl-c
+            raise
         except:
             # otherwise use stupid python getsize
+            stderr_printf( "Can't stat "+fullfilename+"\n" )
+            stderr_printf( "(" + sys.exc_info()[0].__name__ + ")\n" )
+            stderr_printf( "Using os.path.getsize\n")
             size = os.path.getsize(fullfilename)
+    except KeyboardInterrupt:
+        # actually stop if ctrl-c
+        raise
     except:
         size=0
-        if not SYS_STDERR_RETURN:
-            print( "\b"*40, file=sys.stderr, flush=True, end="" )
-        print( "Can't read "+fullfilename, file=sys.stderr, flush=True )
-        SYS_STDERR_RETURN = True
+        stderr_printf( "Can't read "+fullfilename+"\n" )
+        stderr_printf( "(" + sys.exc_info()[0].__name__ + ")\n" )
     return size
+
 
 # convert to string with units
 #   use k=1024 for binary (e.g. kB)
@@ -64,6 +97,7 @@ def size2eng(size,k=1024):
     else:
         sizestr = "%.1g" % (float(size))
     return sizestr
+
 
 def eng2size(numstr):
     if numstr.endswith(("k","K")):
@@ -127,33 +161,27 @@ def process_command_line(argv):
 
     return args
 
-def index_dir( treeroot, exclude_path ):
-    global SYS_STDERR_RETURN
 
+def index_dir( treeroot, exclude_path ):
     # init main dictionary
     sizedict = {}
     filesdone = 0
     if exclude_path:
         exclude_path = re.escape(exclude_path)
 
+    # TODO: a timeout "watchdog timer" thread to see if we have hung on
+    #       some crappy nfs problem?
     for (root,dirs,files) in os.walk(treeroot):
         # add in directories to list of files in this dir
         if exclude_path and re.search(exclude_path,root):
-            if not SYS_STDERR_RETURN:
-                print( "\b"*40, file=sys.stderr, flush=True, end="" )
-            print( "skipping root "+root, file=sys.stderr, flush=True )
-            SYS_STDERR_RETURN = True
+            stderr_printf( "skipping root "+root+"\n" )
             continue
         # remove anything matching exclude from dirs, will prevent
         #   os.walk from searching there! (slice or del)
         if exclude_path:
             for thisdir in dirs:
                 if re.search(exclude_path, os.path.join(root,thisdir)):
-                    if not SYS_STDERR_RETURN:
-                        print( "\b"*40, file=sys.stderr, flush=True, end="" )
-                    print( "removing "+thisdir+" from dirs",
-                            file=sys.stderr, flush=True )
-                    SYS_STDERR_RETURN = True
+                    stderr_printf( "removing "+thisdir+" from dirs\n" )
                     dirs.remove(thisdir)
         
         files.extend(dirs)
@@ -161,12 +189,9 @@ def index_dir( treeroot, exclude_path ):
         for filename in files:
             # full path to filename
             fullfilename = os.path.join(root,filename)
+
             if exclude_path and re.search(exclude_path,fullfilename):
-                if not SYS_STDERR_RETURN:
-                    print( "\b"*40, file=sys.stderr, flush=True, end="" )
-                print( "skipping file "+fullfilename,
-                        file=sys.stderr, flush=True )
-                SYS_STDERR_RETURN = True
+                stderr_printf( "skipping file "+fullfilename+"\n" )
                 continue
 
             size = getfilesize(fullfilename)
@@ -179,16 +204,14 @@ def index_dir( treeroot, exclude_path ):
                 (fullfilename,tail) = os.path.split(fullfilename)
             filesdone+=1
             if filesdone % 1000 == 0:
-                print( "\b"*40+str(filesdone)+" files processed.",
-                        file=sys.stderr, flush=True, end="" )
-                SYS_STDERR_RETURN = False
+                stderr_printf( str(filesdone)+" files processed." )
 
     # now add in size of root dir
     sizedict[treeroot] = ( sizedict.get(treeroot,0) + getfilesize(treeroot) )
     filesdone+=1
 
     # report final tally of files
-    print( "\b"*40+str(filesdone)+" files processed.", file=sys.stderr )
+    stderr_printf( str(filesdone)+" files processed.\n" )
     print( str(filesdone)+" files processed." )
 
     return sizedict
@@ -196,7 +219,6 @@ def index_dir( treeroot, exclude_path ):
 
 # main program
 def main( argv=None ):
-    global SYS_STDERR_RETURN
     args = process_command_line(argv)
 
     # TODO: search multiple paths if given
@@ -230,10 +252,10 @@ def main( argv=None ):
     # filter dict first before converting to list and sorting (efficiency)
     #   filtering is VERY FAST
     if filter>0:
-        print( "filtering by size...", file=sys.stderr )
+        stderr_printf( "filtering by size...\n" )
         filter_thresh(sizedict, filter)
     # take dict and sort
-    print( "sorting...", file=sys.stderr )
+    stderr_printf( "sorting...\n" )
     sort_start_time = time.time()
     fileitems = list(sizedict.items())
     fileitems.sort(key=byitemvalalpha)
@@ -245,7 +267,7 @@ def main( argv=None ):
         maxsizelen = 8
 
     print_start_time = time.time()
-    print( "printing report...", file=sys.stderr )
+    stderr_printf( "printing report...\n" )
     for (filename,filesize) in fileitems:
         if args.kilobyte:
             sizestr = "%.f" % (float(filesize)/1024)
@@ -262,7 +284,7 @@ def main( argv=None ):
             #   string!  default error checking is 'strict' so we specify
             #   our own encoding with 'ignore' and decode back to unicode
             filename = filename.encode('utf-8','ignore').decode('utf-8')
-            print( "Bad Encoding: "+filename, file=sys.stderr )
+            stderr_printf( "Bad Encoding: "+filename+"\n" )
             print( spacestr+sizestr+" "+filename )
     finish_time = time.time()
 
@@ -272,7 +294,7 @@ def main( argv=None ):
     sort_elapsed = print_start_time - sort_start_time
     print_elapsed = finish_time - print_start_time
 
-    print("Elapsed time: %.fs" % elapsed, file=sys.stderr )
+    stderr_printf("Elapsed time: %.fs\n" % elapsed )
 
     print("\nElapsed time: %.fs" % elapsed )
     print("    File Cataloging elapsed time: %.fs" %file_catalog_elapsed)
@@ -283,7 +305,13 @@ def main( argv=None ):
 
 
 if __name__=="__main__":
-    status = main(sys.argv)
+    try:
+        status = main(sys.argv)
+    except KeyboardInterrupt:
+        stderr_printf( "Aborted by Keyboard Interrupt\n",
+                preserve_prev_line=True )
+        status = 130
+
     sys.exit(status)
 
 # vim: sts=4 et sw=4

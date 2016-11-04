@@ -44,7 +44,6 @@ def byitemvalalpha(x):
 #    SYS_STDERR_CR = pr_str.endswith("\n")
 
 
-# alternate version with no global
 def stderr_printf( pr_str, flush=True, preserve_prev_line=False ):
     global LAST_STDERR_STRLEN
     # careful, if erase_chars goes longer than a line of the terminal

@@ -11,10 +11,12 @@ import datetime
 import time
 import argparse
 import re
+import threading
 
 # global flag to show we did/didn't last output a \n to stderr
 #SYS_STDERR_CR = True
 LAST_STDERR_STRLEN = 0
+WATCHDOG_TIMER = False
 
 # x[1] is integer: sort decreasing
 # then if equal,
@@ -170,15 +172,30 @@ def process_command_line(argv):
     return args
 
 
+# TODO: print which dir we were hung on before exiting
+def watchdog_timeout():
+    stderr_printf( "Timeout due to hung file I/O\n", preserve_prev_line=True )
+    # os._exit better than sys.exit because it forces all threads to die now
+    os._exit(1)
+
+
 def index_dir( treeroot, exclude_path ):
+    # use global so we can cancel thread for keyboard interrupt in __main__
+    global WATCHDOG_TIMER 
     # init main dictionary
     sizedict = {}
     filesdone = 0
+    # timeout for 1000 files processed in seconds
+    watchdog_timeout_sec = 20.0
+
     if exclude_path:
         exclude_path = re.escape(exclude_path)
 
-    # TODO: a timeout "watchdog timer" thread to see if we have hung on
-    #       some crappy nfs problem?
+    # watchdog timer that unless canceled will raise Exception after sec
+    #   to guard against file system hangs
+    WATCHDOG_TIMER = threading.Timer(watchdog_timeout_sec, watchdog_timeout)
+    WATCHDOG_TIMER.start()
+
     for (root,dirs,files) in os.walk(treeroot):
         # add in directories to list of files in this dir
         if exclude_path and re.search(exclude_path,root):
@@ -213,6 +230,15 @@ def index_dir( treeroot, exclude_path ):
             filesdone+=1
             if filesdone % 1000 == 0:
                 stderr_printf( str(filesdone)+" files processed." )
+                # reset watchdog timer
+                WATCHDOG_TIMER.cancel()
+                # threads can only be started once, so re-instance
+                WATCHDOG_TIMER =  threading.Timer(
+                        watchdog_timeout_sec, watchdog_timeout)
+                WATCHDOG_TIMER.start()
+
+    # we're done, stop watchdog timer
+    WATCHDOG_TIMER.cancel()
 
     # now add in size of root dir
     sizedict[treeroot] = ( sizedict.get(treeroot,0) + getfilesize(treeroot) )
@@ -316,6 +342,9 @@ if __name__=="__main__":
     try:
         status = main(sys.argv)
     except KeyboardInterrupt:
+        # stop watchdog timer
+        if WATCHDOG_TIMER:
+            WATCHDOG_TIMER.cancel()
         stderr_printf( "Stopped by Keyboard Interrupt\n",
                 preserve_prev_line=True )
         status = 130

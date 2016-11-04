@@ -13,7 +13,8 @@ import argparse
 import re
 
 # global flag to show we did/didn't last output a \n to stderr
-SYS_STDERR_CR = True
+#SYS_STDERR_CR = True
+LAST_STDERR_STRLEN = 0
 
 # x[1] is integer: sort decreasing
 # then if equal,
@@ -43,12 +44,19 @@ def byitemvalalpha(x):
 
 # alternate version with no global
 def stderr_printf( pr_str, flush=True, preserve_prev_line=False ):
+    global LAST_STDERR_STRLEN
+    # careful, if erase_chars goes longer than a line of the terminal
+    #   then we'll end up advancing lines
+    erase_chrs = LAST_STDERR_STRLEN
     if preserve_prev_line:
-        print( "\n", file=sys.stderr, flush=True,end="" )
+        print( "\n", file=sys.stderr, flush=True, end="" )
     else:
-        print( "\b"*80 + " "*80 + "\b"*80, file=sys.stderr, flush=True,end="" )
+        print( "\b"*erase_chrs, file=sys.stderr, flush=True, end="" )
+        print( " "*erase_chrs,  file=sys.stderr, flush=True, end="" )
+        print( "\b"*erase_chrs, file=sys.stderr, flush=True, end="" )
 
     print( pr_str, file=sys.stderr, flush=flush, end="" )
+    LAST_STDERR_STRLEN = len(pr_str)
 
 
 # get size on disk (blocks*block_size) via lstat, but if we can't,
@@ -308,7 +316,7 @@ if __name__=="__main__":
     try:
         status = main(sys.argv)
     except KeyboardInterrupt:
-        stderr_printf( "Aborted by Keyboard Interrupt\n",
+        stderr_printf( "Stopped by Keyboard Interrupt\n",
                 preserve_prev_line=True )
         status = 130
 

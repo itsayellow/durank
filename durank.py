@@ -4,9 +4,12 @@ This is dirwalk.py,
 Matt's very first python code of significance.
 """
 
+# TODO: don't catalog sockets or fifos (see finddup for more weird sys files)
+
 import os
 import os.path
 import sys
+import stat
 import datetime
 import time
 import argparse
@@ -17,6 +20,8 @@ import threading
 #SYS_STDERR_CR = True
 LAST_STDERR_STRLEN = 0
 WATCHDOG_TIMER = False
+CURRENT_ROOT = ""
+CURRENT_FILE = ""
 
 # x[1] is integer: sort decreasing
 # then if equal,
@@ -171,9 +176,31 @@ def process_command_line(argv):
     return args
 
 
+def bad_filetype(fullfilename):
+    returnval = False
+    try:
+        # don't follow symlinks, just treat them like a regular file
+        this_filestat = os.stat(fullfilename, follow_symlinks=False)
+    except:
+        stderr_printf( "Can't stat: " + fullfilename )
+        return True
+
+    if stat.S_ISFIFO(this_filestat.st_mode):
+        # skip FIFOs
+        returnval = True
+    if stat.S_ISSOCK(this_filestat.st_mode):
+        # skip sockets
+        returnval = True
+
+    return returnval
+
+
+
 # TODO: print which dir we were hung on before exiting
 def watchdog_timeout():
     stderr_printf( "Timeout due to hung file I/O\n", preserve_prev_line=True )
+    stderr_printf( "Current dir:  %s\n" %(CURRENT_ROOT))
+    stderr_printf( "Current file: %s\n" %(CURRENT_FILE))
     # os._exit better than sys.exit because it forces all threads to die now
     os._exit(1)
 
@@ -181,6 +208,9 @@ def watchdog_timeout():
 def index_dir( treeroot, exclude_path ):
     # use global so we can cancel thread for keyboard interrupt in __main__
     global WATCHDOG_TIMER 
+    global CURRENT_ROOT
+    global CURRENT_FILE
+
     # init main dictionary
     sizedict = {}
     filesdone = 0
@@ -196,6 +226,9 @@ def index_dir( treeroot, exclude_path ):
     WATCHDOG_TIMER.start()
 
     for (root,dirs,files) in os.walk(treeroot):
+        # for debugging on hang
+        CURRENT_ROOT = root
+
         # add in directories to list of files in this dir
         if exclude_path and re.search(exclude_path,root):
             stderr_printf( "skipping root "+root+"\n" )
@@ -211,8 +244,15 @@ def index_dir( treeroot, exclude_path ):
         files.extend(dirs)
 
         for filename in files:
+            # for debugging on hang
+            CURRENT_FILE = filename
+
             # full path to filename
             fullfilename = os.path.join(root,filename)
+
+            if bad_filetype(fullfilename):
+                stderr_printf( "Bad filetype: "+fullfilename+"\n" )
+                continue
 
             if exclude_path and re.search(exclude_path,fullfilename):
                 stderr_printf( "skipping file "+fullfilename+"\n" )
@@ -222,10 +262,15 @@ def index_dir( treeroot, exclude_path ):
             
             # add this file or dir's size to itself and every parent dir
             #   in sizedict, so dirs include total size of files below
-            # TODO: this fails if treeroot is /
             while len(fullfilename) >= len(treeroot):
                 sizedict[fullfilename] = sizedict.get(fullfilename,0) + size
-                (fullfilename,tail) = os.path.split(fullfilename)
+                # if-else is a hack, because os.path.split('/')
+                #   returns ('/',''), making an infinite loop
+                if fullfilename == '/':
+                    fullfilename = ''
+                else:
+                    (fullfilename,tail) = os.path.split(fullfilename)
+
             filesdone+=1
             if filesdone % 1000 == 0:
                 stderr_printf( str(filesdone)+" files processed." )

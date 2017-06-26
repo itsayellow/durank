@@ -238,9 +238,14 @@ def index_dir( treeroot, exclude_path ):
         if exclude_path:
             for thisdir in dirs:
                 if re.search(exclude_path, os.path.join(root,thisdir)):
-                    stderr_printf( "removing "+thisdir+" from dirs\n" )
+                    stderr_printf( "excluding: "+root+"/"+thisdir+"\n" )
                     dirs.remove(thisdir)
-        
+        # let's not index remote mounts
+        if root == "/" and "Volumes" in dirs:
+            stderr_printf( "excluding: /Volumes\n" )
+            dirs.remove("Volumes")
+
+        # Presumably we add dirs so we can get size of actual dir descriptor
         files.extend(dirs)
 
         for filename in files:

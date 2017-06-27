@@ -238,11 +238,12 @@ def index_dir( treeroot, exclude_path ):
         if exclude_path:
             for thisdir in dirs:
                 if re.search(exclude_path, os.path.join(root,thisdir)):
-                    stderr_printf( "excluding: "+root+"/"+thisdir+"\n" )
+                    stderr_printf( "excluding: "+root+os.sep+thisdir+"\n" )
                     dirs.remove(thisdir)
-        # let's not index remote mounts
-        if root == "/" and "Volumes" in dirs:
-            stderr_printf( "excluding: /Volumes\n" )
+        # let's not index remote mounts (MacOS only...)
+        #   TODO: check for mount points and skip those
+        if root == os.sep and "Volumes" in dirs:
+            stderr_printf( "excluding: " + os.sep + "Volumes\n" )
             dirs.remove("Volumes")
 
         # Presumably we add dirs so we can get size of actual dir descriptor
@@ -271,7 +272,7 @@ def index_dir( treeroot, exclude_path ):
                 sizedict[fullfilename] = sizedict.get(fullfilename,0) + size
                 # if-else is a hack, because os.path.split('/')
                 #   returns ('/',''), making an infinite loop
-                if fullfilename == '/':
+                if fullfilename == os.sep:
                     fullfilename = ''
                 else:
                     (fullfilename,tail) = os.path.split(fullfilename)
@@ -357,7 +358,7 @@ def main( argv=None ):
         else:
             sizestr = size2eng(filesize)+"B"
         spacestr = " " * (maxsizelen - len(sizestr) )
-        if os.path.isdir(filename):
+        if os.path.isdir(filename) and filename != os.sep:
             # add trailing slash to indicate a dir
             filename = filename + os.sep
         try:

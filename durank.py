@@ -53,6 +53,13 @@ class StderrPrinter(object):
         """
         if text.startswith('\r'):
             self.need_cr = False
+        # we need_cr if last print specifically didn't have a \n,
+        #   and this one doesn't start with \r
+        # Most likely last one was a progress display and this one is an
+        #   error or warning.
+        # Instead of printing on the end of the line after the progress
+        #   line, it \n to the next line.
+        # [It could just as easily be a \r to erase the previous line.]
         if self.need_cr:
             print("", file=sys.stderr)
 
@@ -66,36 +73,6 @@ class StderrPrinter(object):
 
 # Global
 myerr = StderrPrinter()
-
-
-#   SYS_STDERR_CR is only useful if we are breaking out of the program or
-#   something, and want to preserve the last thing printed
-#
-#def stderr_printf( pr_str, flush=True ):
-#    global SYS_STDERR_CR
-#
-#    if not SYS_STDERR_CR:
-#        print( "\b"*80, file=sys.stderr, flush=True, end="" )
-#    
-#    print( pr_str, file=sys.stderr, flush=flush, end="" )
-#
-#    SYS_STDERR_CR = pr_str.endswith("\n")
-
-
-def stderr_printf( pr_str, flush=True, preserve_prev_line=False ):
-    global LAST_STDERR_STRLEN
-    # careful, if erase_chars goes longer than a line of the terminal
-    #   then we'll end up advancing lines
-    erase_chrs = LAST_STDERR_STRLEN
-    if preserve_prev_line:
-        print( "\n", file=sys.stderr, flush=True, end="" )
-    else:
-        print( "\b"*erase_chrs, file=sys.stderr, flush=True, end="" )
-        print( " "*erase_chrs,  file=sys.stderr, flush=True, end="" )
-        print( "\b"*erase_chrs, file=sys.stderr, flush=True, end="" )
-
-    print( pr_str, file=sys.stderr, flush=flush, end="" )
-    LAST_STDERR_STRLEN = len(pr_str)
 
 
 # get size on disk (blocks*block_size) via lstat, but if we can't,

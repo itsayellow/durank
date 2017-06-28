@@ -35,6 +35,39 @@ def byitemvalalpha(x):
     return "%016d"%(1e15-x[1])+str(x[0])
 
 
+class StderrPrinter(object):
+    r"""Prints to stderr especially for use with \r and same-line updates
+
+    Keeps track of whether an extra \n is needed before printing string,
+    especially in cases where the previous print string didn't have
+    one and this print string doesn't start with \r
+
+    Allows for easily printing error messages (regular print) amongst
+    same-line updates (starting with \r and with no finishing \n).
+    """
+    def __init__(self):
+        self.need_cr = False
+
+    def print(self, text, **prkwargs):
+        """Print to stderr, automatically knowing if we need a CR beforehand.
+        """
+        if text.startswith('\r'):
+            self.need_cr = False
+        if self.need_cr:
+            print("", file=sys.stderr)
+
+        print(text, file=sys.stderr, **prkwargs)
+
+        if prkwargs.get('end', '\n') == '' and not text.endswith('\n'):
+            self.need_cr = True
+        else:
+            self.need_cr = False
+
+
+# Global
+myerr = StderrPrinter()
+
+
 #   SYS_STDERR_CR is only useful if we are breaking out of the program or
 #   something, and want to preserve the last thing printed
 #
@@ -80,17 +113,17 @@ def getfilesize(fullfilename):
             raise
         except:
             # otherwise use stupid python getsize
-            stderr_printf( "Can't stat "+fullfilename+"\n" )
-            stderr_printf( "(" + sys.exc_info()[0].__name__ + ")\n" )
-            stderr_printf( "Using os.path.getsize\n")
-            size = os.path.getsize(fullfilename)
+            myerr.print("Can't stat "+fullfilename)
+            myerr.print("(" + sys.exc_info()[0].__name__ + ")")
+            myerr.print("Using os.path.getsize")
+            size = os.pah.getsize(fullfilename)
     except KeyboardInterrupt:
         # actually stop if ctrl-c
         raise
     except:
         size=0
-        stderr_printf( "Can't read "+fullfilename+"\n" )
-        stderr_printf( "(" + sys.exc_info()[0].__name__ + ")\n" )
+        myerr.print("Can't read "+fullfilename)
+        myerr.print("(" + sys.exc_info()[0].__name__ + ")")
     return size
 
 
@@ -182,7 +215,7 @@ def bad_filetype(fullfilename):
         # don't follow symlinks, just treat them like a regular file
         this_filestat = os.stat(fullfilename, follow_symlinks=False)
     except:
-        stderr_printf( "Can't stat: " + fullfilename )
+        myerr.print("Can't stat: " + fullfilename)
         return True
 
     if stat.S_ISFIFO(this_filestat.st_mode):
@@ -198,9 +231,9 @@ def bad_filetype(fullfilename):
 
 # TODO: print which dir we were hung on before exiting
 def watchdog_timeout():
-    stderr_printf( "Timeout due to hung file I/O\n", preserve_prev_line=True )
-    stderr_printf( "Current dir:  %s\n" %(CURRENT_ROOT))
-    stderr_printf( "Current file: %s\n" %(CURRENT_FILE))
+    myerr.print("Timeout due to hung file I/O")
+    myerr.print("Current dir:  %s" %(CURRENT_ROOT))
+    myerr.print("Current file: %s" %(CURRENT_FILE))
     # os._exit better than sys.exit because it forces all threads to die now
     os._exit(1)
 
@@ -231,19 +264,19 @@ def index_dir( treeroot, exclude_path ):
 
         # add in directories to list of files in this dir
         if exclude_path and re.search(exclude_path,root):
-            stderr_printf( "skipping root "+root+"\n" )
+            myerr.print("skipping root "+root)
             continue
         # remove anything matching exclude from dirs, will prevent
         #   os.walk from searching there! (slice or del)
         if exclude_path:
             for thisdir in dirs:
                 if re.search(exclude_path, os.path.join(root,thisdir)):
-                    stderr_printf( "excluding: "+root+os.sep+thisdir+"\n" )
+                    myerr.print("excluding: "+root+os.sep+thisdir)
                     dirs.remove(thisdir)
         # let's not index remote mounts (MacOS only...)
         #   TODO: check for mount points and skip those
         if root == os.sep and "Volumes" in dirs:
-            stderr_printf( "excluding: " + os.sep + "Volumes\n" )
+            myerr.print("excluding: " + os.sep + "Volumes")
             dirs.remove("Volumes")
 
         # Presumably we add dirs so we can get size of actual dir descriptor
@@ -257,11 +290,11 @@ def index_dir( treeroot, exclude_path ):
             fullfilename = os.path.join(root,filename)
 
             if bad_filetype(fullfilename):
-                stderr_printf( "Bad filetype: "+fullfilename+"\n" )
+                myerr.print("Bad filetype: "+fullfilename)
                 continue
 
             if exclude_path and re.search(exclude_path,fullfilename):
-                stderr_printf( "skipping file "+fullfilename+"\n" )
+                myerr.print("skipping file "+fullfilename)
                 continue
 
             size = getfilesize(fullfilename)
@@ -279,7 +312,8 @@ def index_dir( treeroot, exclude_path ):
 
             filesdone+=1
             if filesdone % 1000 == 0:
-                stderr_printf( str(filesdone)+" files processed." )
+                myerr.print("\r"+str(filesdone)+" files processed.",
+                        end="", flush=True)
                 # reset watchdog timer
                 WATCHDOG_TIMER.cancel()
                 # threads can only be started once, so re-instance
@@ -295,8 +329,8 @@ def index_dir( treeroot, exclude_path ):
     filesdone+=1
 
     # report final tally of files
-    stderr_printf( str(filesdone)+" files processed.\n" )
-    print( str(filesdone)+" files processed." )
+    myerr.print("\r"+str(filesdone)+" files processed.")
+    print(str(filesdone)+" files processed.")
 
     return sizedict
 
@@ -336,10 +370,10 @@ def main( argv=None ):
     # filter dict first before converting to list and sorting (efficiency)
     #   filtering is VERY FAST
     if filter>0:
-        stderr_printf( "filtering by size...\n" )
+        myerr.print("filtering by size...")
         filter_thresh(sizedict, filter)
     # take dict and sort
-    stderr_printf( "sorting...\n" )
+    myerr.print("sorting...")
     sort_start_time = time.time()
     fileitems = list(sizedict.items())
     fileitems.sort(key=byitemvalalpha)
@@ -351,7 +385,7 @@ def main( argv=None ):
         maxsizelen = 8
 
     print_start_time = time.time()
-    stderr_printf( "printing report...\n" )
+    myerr.print("printing report...")
     for (filename,filesize) in fileitems:
         if args.kilobyte:
             sizestr = "%.f" % (float(filesize)/1024)
@@ -368,7 +402,7 @@ def main( argv=None ):
             #   string!  default error checking is 'strict' so we specify
             #   our own encoding with 'ignore' and decode back to unicode
             filename = filename.encode('utf-8','ignore').decode('utf-8')
-            stderr_printf( "Bad Encoding: "+filename+"\n" )
+            myerr.print("Bad Encoding: "+filename)
             print( spacestr+sizestr+" "+filename )
     finish_time = time.time()
 
@@ -378,7 +412,7 @@ def main( argv=None ):
     sort_elapsed = print_start_time - sort_start_time
     print_elapsed = finish_time - print_start_time
 
-    stderr_printf("Elapsed time: %.fs\n" % elapsed )
+    myerr.print("Elapsed time: %.fs" % elapsed )
 
     print("\nElapsed time: %.fs" % elapsed )
     print("    File Cataloging elapsed time: %.fs" %file_catalog_elapsed)
@@ -395,8 +429,7 @@ if __name__=="__main__":
         # stop watchdog timer
         if WATCHDOG_TIMER:
             WATCHDOG_TIMER.cancel()
-        stderr_printf( "Stopped by Keyboard Interrupt\n",
-                preserve_prev_line=True )
+        myerr.print( "Stopped by Keyboard Interrupt")
         status = 130
 
     sys.exit(status)

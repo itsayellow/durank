@@ -88,11 +88,9 @@ def getfilesize(fullfilename):
         except KeyboardInterrupt:
             # actually stop if ctrl-c
             raise
-        except:
-            # otherwise use stupid python getsize
-            myerr.print("Can't stat "+fullfilename)
-            myerr.print("(" + sys.exc_info()[0].__name__ + ")")
-            myerr.print("Using os.path.getsize")
+        except AttributeError:
+            # Windows has no st_blocks
+            # if not available, use stupid python getsize
             size = os.path.getsize(fullfilename)
     except KeyboardInterrupt:
         # actually stop if ctrl-c

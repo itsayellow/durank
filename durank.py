@@ -93,7 +93,7 @@ def getfilesize(fullfilename):
             myerr.print("Can't stat "+fullfilename)
             myerr.print("(" + sys.exc_info()[0].__name__ + ")")
             myerr.print("Using os.path.getsize")
-            size = os.pah.getsize(fullfilename)
+            size = os.path.getsize(fullfilename)
     except KeyboardInterrupt:
         # actually stop if ctrl-c
         raise

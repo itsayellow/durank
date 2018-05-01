@@ -65,10 +65,7 @@ class StderrPrinter(object):
 
         print(text, file=sys.stderr, **prkwargs)
 
-        if prkwargs.get('end', '\n') == '' and not text.endswith('\n'):
-            self.need_cr = True
-        else:
-            self.need_cr = False
+        self.need_cr = prkwargs.get('end', '\n') == '' and not text.endswith('\n')
 
 
 # Global
@@ -96,7 +93,7 @@ def getfilesize(fullfilename):
         # actually stop if ctrl-c
         raise
     except:
-        size=0
+        size = 0
         myerr.print("Can't read "+fullfilename)
         myerr.print("(" + sys.exc_info()[0].__name__ + ")")
     return size
@@ -105,7 +102,7 @@ def getfilesize(fullfilename):
 # convert to string with units
 #   use k=1024 for binary (e.g. kB)
 #   use k=1000 for non-binary kW
-def size2eng(size,k=1024):
+def size2eng(size, k=1024):
     if   size > k**5:
         sizestr = "%.1fP" % (float(size)/k**5)
     elif size > k**4:
@@ -122,27 +119,27 @@ def size2eng(size,k=1024):
 
 
 def eng2size(numstr):
-    if numstr.endswith(("k","K")):
-        num = int(numstr[:-1])*1024;
-    elif numstr.endswith(("m","M")):
-        num = int(numstr[:-1])*1024*1024;
-    elif numstr.endswith(("g","G")):
-        num = int(numstr[:-1])*1024*1024*1024;
-    elif numstr.endswith(("t","T")):
-        num = int(numstr[:-1])*1024*1024*1024*1024;
-    elif numstr.endswith(("p","P")):
-        num = int(numstr[:-1])*1024*1024*1024*1024*1024;
+    if numstr.endswith(("k", "K")):
+        num = int(numstr[:-1])*1024
+    elif numstr.endswith(("m", "M")):
+        num = int(numstr[:-1])*1024*1024
+    elif numstr.endswith(("g", "G")):
+        num = int(numstr[:-1])*1024*1024*1024
+    elif numstr.endswith(("t", "T")):
+        num = int(numstr[:-1])*1024*1024*1024*1024
+    elif numstr.endswith(("p", "P")):
+        num = int(numstr[:-1])*1024*1024*1024*1024*1024
     else:
         num = int(numstr)
     return num
 
 
-# delete all keys in sizedict that resolve to a number less than filter
+# delete all keys in sizedict that resolve to a number less than filter_val
 # can operate on sizedict because it is a reference
-def filter_thresh(sizedict, filter):
+def filter_thresh(sizedict, filter_val):
     filtered_keys = []
     for key in sizedict.keys():
-        if sizedict[key] < filter:
+        if sizedict[key] < filter_val:
             filtered_keys.append(key)
     for key in filtered_keys:
         sizedict.pop(key)
@@ -153,23 +150,25 @@ def process_command_line(argv):
     Return a 2-tuple: (settings object, args list).
     `argv` is a list of arguments, or `None` for ``sys.argv[1:]``.
     """
-    script_name = argv[0]
     argv = argv[1:]
 
     # initialize the parser object:
     parser = argparse.ArgumentParser(
-            description="Search a path for the directories and files taking the most space and rank them." )
+            description="Search a path for the directories and files taking "\
+                    "the most space and rank them.")
 
     # specifying nargs= puts outputs of parser in list (even if nargs=1)
 
     # required arguments
-    parser.add_argument( 'searchpaths', nargs='*',
+    parser.add_argument('searchpaths', nargs='*',
             help = "Search path(s) (recursively searched)."
             )
 
     # switches/options:
     parser.add_argument("-t", "--thresh", dest="threshold", action='store',
-                help="report only files, directories greater than THRESHOLD bytes.  Can use units, e.g. 2k, 2K, 1m, 1M, 2g, 2G, 1T, etc."
+                help="report only files, directories greater than THRESHOLD "\
+                        "bytes.  Can use units, e.g. 2k, 2K, 1m, 1M, 2g, 2G, "\
+                        "1T, etc."
                 )
     parser.add_argument("-k", dest="kilobyte", action="store_true",
                 help="report sizes in number of kB only"
@@ -213,9 +212,9 @@ def watchdog_timeout():
     os._exit(1)
 
 
-def index_dir( treeroot, exclude_path ):
+def index_dir(treeroot, exclude_path):
     # use global so we can cancel thread for keyboard interrupt in __main__
-    global WATCHDOG_TIMER 
+    global WATCHDOG_TIMER
     global CURRENT_ROOT
     global CURRENT_FILE
 
@@ -233,19 +232,19 @@ def index_dir( treeroot, exclude_path ):
     WATCHDOG_TIMER = threading.Timer(watchdog_timeout_sec, watchdog_timeout)
     WATCHDOG_TIMER.start()
 
-    for (root,dirs,files) in os.walk(treeroot):
+    for (root, dirs, files) in os.walk(treeroot):
         # for debugging on hang
         CURRENT_ROOT = root
 
         # add in directories to list of files in this dir
-        if exclude_path and re.search(exclude_path,root):
+        if exclude_path and re.search(exclude_path, root):
             myerr.print("skipping root "+root)
             continue
         # remove anything matching exclude from dirs, will prevent
         #   os.walk from searching there! (slice or del)
         if exclude_path:
             for thisdir in dirs:
-                if re.search(exclude_path, os.path.join(root,thisdir)):
+                if re.search(exclude_path, os.path.join(root, thisdir)):
                     myerr.print("excluding: "+root+os.sep+thisdir)
                     dirs.remove(thisdir)
         # let's not index remote mounts (MacOS only...)
@@ -262,37 +261,37 @@ def index_dir( treeroot, exclude_path ):
             CURRENT_FILE = filename
 
             # full path to filename
-            fullfilename = os.path.join(root,filename)
+            fullfilename = os.path.join(root, filename)
 
             if bad_filetype(fullfilename):
                 myerr.print("Bad filetype: "+fullfilename)
                 continue
 
-            if exclude_path and re.search(exclude_path,fullfilename):
+            if exclude_path and re.search(exclude_path, fullfilename):
                 myerr.print("skipping file "+fullfilename)
                 continue
 
             size = getfilesize(fullfilename)
-            
+
             # add this file or dir's size to itself and every parent dir
             #   in sizedict, so dirs include total size of files below
             while len(fullfilename) >= len(treeroot):
-                sizedict[fullfilename] = sizedict.get(fullfilename,0) + size
+                sizedict[fullfilename] = sizedict.get(fullfilename, 0) + size
                 # if-else is a hack, because os.path.split('/')
                 #   returns ('/',''), making an infinite loop
                 if fullfilename == os.sep:
                     fullfilename = ''
                 else:
-                    (fullfilename,tail) = os.path.split(fullfilename)
+                    (fullfilename, _) = os.path.split(fullfilename)
 
-            filesdone+=1
+            filesdone += 1
             if filesdone % 1000 == 0:
                 myerr.print("\r"+str(filesdone)+" files processed.",
                         end="", flush=True)
                 # reset watchdog timer
                 WATCHDOG_TIMER.cancel()
                 # threads can only be started once, so re-instance
-                WATCHDOG_TIMER =  threading.Timer(
+                WATCHDOG_TIMER = threading.Timer(
                         watchdog_timeout_sec, watchdog_timeout)
                 WATCHDOG_TIMER.start()
 
@@ -300,8 +299,8 @@ def index_dir( treeroot, exclude_path ):
     WATCHDOG_TIMER.cancel()
 
     # now add in size of root dir
-    sizedict[treeroot] = ( sizedict.get(treeroot,0) + getfilesize(treeroot) )
-    filesdone+=1
+    sizedict[treeroot] = (sizedict.get(treeroot, 0) + getfilesize(treeroot))
+    filesdone += 1
 
     # report final tally of files
     myerr.print("\r"+str(filesdone)+" files processed.")
@@ -311,26 +310,26 @@ def index_dir( treeroot, exclude_path ):
 
 
 # main program
-def main( argv=None ):
+def main(argv=None):
     args = process_command_line(argv)
 
     # TODO: search multiple paths if given
-    if len(args.searchpaths)< 1:
+    if len(args.searchpaths) < 1:
         treeroot = '.'
     else:
         treeroot = os.path.normpath(args.searchpaths[0])
 
     # print info to output
-    print( os.path.basename(__file__) + " " + " ".join(sys.argv[1:-1]), end="" )
-    print( " "+os.path.abspath(treeroot) )
-    print( datetime.datetime.now().strftime("%a %b %d %Y   %I:%M%p") )
+    print(os.path.basename(__file__) + " " + " ".join(sys.argv[1:-1]), end="")
+    print(" "+os.path.abspath(treeroot))
+    print(datetime.datetime.now().strftime("%a %b %d %Y   %I:%M%p"))
 
     # parse threshold if present
     if args.threshold:
-        filter = eng2size(args.threshold)
-        print( "threshold=%sB" % size2eng(filter))
+        filter_val = eng2size(args.threshold)
+        print("threshold=%sB" % size2eng(filter_val))
     else:
-        filter = 0
+        filter_val = 0
 
     #-----------------------
     # main program
@@ -338,15 +337,15 @@ def main( argv=None ):
     start_time = time.time()
 
     # file crawling recursive sizer
-    sizedict = index_dir( treeroot, args.exclude )
+    sizedict = index_dir(treeroot, args.exclude)
 
     file_catalog_done_time = time.time()
 
     # filter dict first before converting to list and sorting (efficiency)
     #   filtering is VERY FAST
-    if filter>0:
+    if filter_val > 0:
         myerr.print("filtering by size...")
-        filter_thresh(sizedict, filter)
+        filter_thresh(sizedict, filter_val)
     # take dict and sort
     myerr.print("sorting...")
     sort_start_time = time.time()
@@ -361,24 +360,24 @@ def main( argv=None ):
 
     print_start_time = time.time()
     myerr.print("printing report...")
-    for (filename,filesize) in fileitems:
+    for (filename, filesize) in fileitems:
         if args.kilobyte:
             sizestr = "%.f" % (float(filesize)/1024)
         else:
             sizestr = size2eng(filesize)+"B"
-        spacestr = " " * (maxsizelen - len(sizestr) )
+        spacestr = " " * (maxsizelen - len(sizestr))
         if os.path.isdir(filename) and filename != os.sep:
             # add trailing slash to indicate a dir
             filename = filename + os.sep
         try:
-            print( spacestr+sizestr+" "+filename )
+            print(spacestr+sizestr+" "+filename)
         except UnicodeEncodeError:
             # sometimes os.walk will return an non-encodable-in-unicode
             #   string!  default error checking is 'strict' so we specify
             #   our own encoding with 'ignore' and decode back to unicode
-            filename = filename.encode('utf-8','ignore').decode('utf-8')
+            filename = filename.encode('utf-8', 'ignore').decode('utf-8')
             myerr.print("Bad Encoding: "+filename)
-            print( spacestr+sizestr+" "+filename )
+            print(spacestr+sizestr+" "+filename)
     finish_time = time.time()
 
     elapsed = finish_time-start_time
@@ -387,24 +386,26 @@ def main( argv=None ):
     sort_elapsed = print_start_time - sort_start_time
     print_elapsed = finish_time - print_start_time
 
-    myerr.print("Elapsed time: %.fs" % elapsed )
+    myerr.print("Elapsed time: %.fs" % elapsed)
 
-    print("\nElapsed time: %.fs" % elapsed )
+    print("\nElapsed time: %.fs" % elapsed)
     print("    File Cataloging elapsed time: %.fs" %file_catalog_elapsed)
-    if filter>0:
-        print("    Filtering elapsed time: %.fs" % filter_elapsed )
-    print("    Sorting elapsed time: %.fs" % sort_elapsed )
-    print("    Report Printing elapsed time: %.fs" % print_elapsed )
+    if filter_val > 0:
+        print("    Filtering elapsed time: %.fs" % filter_elapsed)
+    print("    Sorting elapsed time: %.fs" % sort_elapsed)
+    print("    Report Printing elapsed time: %.fs" % print_elapsed)
 
+    # status OK
+    return 0
 
-if __name__=="__main__":
+if __name__ == "__main__":
     try:
         status = main(sys.argv)
     except KeyboardInterrupt:
         # stop watchdog timer
         if WATCHDOG_TIMER:
             WATCHDOG_TIMER.cancel()
-        myerr.print( "Stopped by Keyboard Interrupt")
+        myerr.print("Stopped by Keyboard Interrupt")
         status = 130
 
     sys.exit(status)

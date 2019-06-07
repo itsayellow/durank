@@ -25,6 +25,6 @@ setup(
                 'durank=durank:cli'
                 ]
             },
-        #python_requires='>=3',
+        python_requires='>=3',
         )
 

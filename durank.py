@@ -398,7 +398,8 @@ def main(argv=None):
     # status OK
     return 0
 
-if __name__ == "__main__":
+
+def cli():
     try:
         status = main(sys.argv)
     except KeyboardInterrupt:
@@ -409,5 +410,9 @@ if __name__ == "__main__":
         status = 130
 
     sys.exit(status)
+
+
+if __name__ == "__main__":
+    cli()
 
 # vim: sts=4 et sw=4

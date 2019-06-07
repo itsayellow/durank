@@ -22,7 +22,7 @@ setup(
         py_modules=['durank'],
         entry_points={
             'console_scripts':[
-                'zipls=durank:cli'
+                'durank=durank:cli'
                 ]
             },
         #python_requires='>=3',

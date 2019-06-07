@@ -2,4 +2,4 @@
 
 ## Installation
 
-    pipx install --spec https://github.com/itsayellow/durank durank
+    pipx install --spec git+https://github.com/itsayellow/durank durank

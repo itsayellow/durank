@@ -2,7 +2,7 @@
 
 ## Installation
 
-Install pipx.
+Install [pipx](https://github.com/pipxproject/pipx).
 
 ```
 pip install pipx

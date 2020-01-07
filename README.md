@@ -2,10 +2,14 @@
 
 ## Installation
 
-### pipx <= v14.0.0
+Install pipx.
 
-    pipx install --spec git+https://github.com/itsayellow/durank durank
+```
+pip install pipx
+```
 
-### pipx > v14.0.0
+Install durank.
 
-    pipx install git+https://github.com/itsayellow/durank
+```
+pipx install git+https://github.com/itsayellow/durank
+```

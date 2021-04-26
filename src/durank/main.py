@@ -129,7 +129,9 @@ def main(argv=None):
             # sometimes os.walk will return an non-encodable-in-unicode
             #   string!  default error checking is 'strict' so we specify
             #   our own encoding with 'ignore' and decode back to unicode
-            filename = filename.encode("utf-8", "ignore").decode("utf-8")
+            filename = filename.encode(sys.stdout.encoding, "ignore").decode(
+                sys.stdout.encoding
+            )
             durank.myerr.print("Bad Encoding: " + filename)
             print(spacestr + sizestr + " " + filename)
     finish_time = time.time()

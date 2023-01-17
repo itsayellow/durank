@@ -1,6 +1,43 @@
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "durank"
+dynamic = ["version"]
+description = "Disk usage with ranking."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.6"
+authors = [
+    { name = "Matthew A. Clapp", email = "itsayellow+dev@gmail.com" },
+]
+keywords = [
+    "du",
+    "ranking",
+]
+classifiers = [
+    "Natural Language :: English",
+]
+
+[project.scripts]
+durank = "durank.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/itsayellow/durank"
+
+[tool.hatch.version]
+path = "src/durank/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/durank",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/ src",
+]
 
 [tool.isort]
 profile = "black"

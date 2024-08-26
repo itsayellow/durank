@@ -68,6 +68,10 @@ def main(argv=None):
     args = process_command_line(argv)
 
     # TODO: search multiple paths if given
+    #   1. normpath all paths
+    #   2. eliminate paths that are children of any other path
+    #   3. just run index_dir multiple times, and merge all resulting
+    #       dicts into one with no post-processing
     if len(args.searchpaths) < 1:
         treeroot = "."
     else:
@@ -114,7 +118,7 @@ def main(argv=None):
 
     print_start_time = time.time()
     durank.myerr.print("printing report...")
-    for (filename, filesize) in fileitems:
+    for filename, filesize in fileitems:
         if args.kilobyte:
             sizestr = "%.f" % (float(filesize) / 1024)
         else:
@@ -164,6 +168,12 @@ def cli():
             durank.WATCHDOG_TIMER.cancel()
         durank.myerr.print("Stopped by Keyboard Interrupt")
         status = 130
+    except BrokenPipeError:
+        # stop watchdog timer
+        if durank.WATCHDOG_TIMER:
+            durank.WATCHDOG_TIMER.cancel()
+        durank.myerr.print("Broken Pipe")
+        status = 1
 
     sys.exit(status)
 
